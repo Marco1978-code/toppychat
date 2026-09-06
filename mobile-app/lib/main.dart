@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+import 'services/background_service.dart';
 import 'services/chat_controller.dart';
+import 'services/notification_service.dart';
 import 'services/relay_service.dart';
 import 'services/settings_service.dart';
 import 'screens/contacts_screen.dart';
 import 'screens/setup_screen.dart';
 
 void main() {
+  FlutterForegroundTask.initCommunicationPort();
   runApp(const ToppyChatApp());
 }
 
@@ -23,6 +27,8 @@ class ToppyChatApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const _StartupGate(),
+      builder: (context, child) =>
+          WithForegroundTask(child: child ?? const SizedBox.shrink()),
     );
   }
 }
@@ -48,6 +54,9 @@ class _StartupGateState extends State<_StartupGate> {
   }
 
   Future<void> _check() async {
+    BackgroundService.configure();
+    await NotificationService.instance.initialize();
+
     final complete = await _settings.isSetupComplete();
     if (complete) {
       final url = await _settings.getRelayUrl() ?? '';
@@ -55,6 +64,8 @@ class _StartupGateState extends State<_StartupGate> {
       final number = await _settings.getOwnNumber() ?? '';
       RelayService.instance.connect(url: url, token: token, ownNumber: number);
       ChatController.instance.startListening();
+      await BackgroundService.requestPermissions();
+      await BackgroundService.start();
     }
     if (!mounted) return;
     setState(() {
