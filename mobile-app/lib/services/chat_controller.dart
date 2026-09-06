@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/chat_message.dart';
 import '../models/contact.dart';
+import 'notification_service.dart';
 import 'relay_service.dart';
 import 'settings_service.dart';
 import 'storage_service.dart';
@@ -77,6 +78,15 @@ class ChatController {
 
     await _storage.appendMessage(from, msg);
     _eventsController.add(ChatEvent(from, msg));
+
+    final contact = contacts.firstWhere(
+      (c) => c.number == from,
+      orElse: () => Contact(number: from, name: from),
+    );
+    await NotificationService.instance.showMessageNotification(
+      title: contact.name,
+      body: msg.text,
+    );
   }
 
   /// Invia un messaggio testuale a [contact]: lo salva subito in locale e
