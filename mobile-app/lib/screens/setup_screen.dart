@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../services/background_service.dart';
