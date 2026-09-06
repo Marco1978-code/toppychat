@@ -15,13 +15,13 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 /// finche' il processo resta vivo.
 class ChatBackgroundTaskHandler extends TaskHandler {
   @override
-  void onStart(DateTime timestamp, TaskStarter starter) {}
+  Future<void> onStart(DateTime timestamp, TaskStarter starter) async {}
 
   @override
   void onRepeatEvent(DateTime timestamp) {}
 
   @override
-  void onDestroy(DateTime timestamp) {}
+  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {}
 }
 
 @pragma('vm:entry-point')
