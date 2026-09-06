@@ -30,6 +30,39 @@ jobs:
             flutter create . --platforms=android --org com.marco.toppychat --project-name toppychat
           fi
 
+      - name: Enable core library desugaring (richiesto da flutter_local_notifications)
+        working-directory: mobile-app
+        run: |
+          if [ -f android/app/build.gradle.kts ]; then
+            GRADLE_FILE=android/app/build.gradle.kts
+            echo "" >> "$GRADLE_FILE"
+            echo "android {" >> "$GRADLE_FILE"
+            echo "    compileOptions {" >> "$GRADLE_FILE"
+            echo "        isCoreLibraryDesugaringEnabled = true" >> "$GRADLE_FILE"
+            echo "    }" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
+            echo "" >> "$GRADLE_FILE"
+            echo "dependencies {" >> "$GRADLE_FILE"
+            echo "    coreLibraryDesugaring(\"com.android.tools:desugar_jdk_libs:2.1.4\")" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
+          elif [ -f android/app/build.gradle ]; then
+            GRADLE_FILE=android/app/build.gradle
+            echo "" >> "$GRADLE_FILE"
+            echo "android {" >> "$GRADLE_FILE"
+            echo "    compileOptions {" >> "$GRADLE_FILE"
+            echo "        coreLibraryDesugaringEnabled true" >> "$GRADLE_FILE"
+            echo "    }" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
+            echo "" >> "$GRADLE_FILE"
+            echo "dependencies {" >> "$GRADLE_FILE"
+            echo "    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
+          else
+            echo "File build.gradle non trovato in android/app" >&2
+            exit 1
+          fi
+          cat "$GRADLE_FILE"
+
       - name: Apply custom AndroidManifest
         working-directory: mobile-app
         run: cp android_overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
