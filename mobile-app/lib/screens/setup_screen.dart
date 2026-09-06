@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/background_service.dart';
 import '../services/chat_controller.dart';
 import '../services/relay_service.dart';
 import '../services/settings_service.dart';
@@ -60,6 +61,7 @@ class _SetupScreenState extends State<SetupScreen> {
     // Chiediamo subito il permesso per la cartella Download, cosi' lo
     // sblocchiamo prima di arrivare alla prima chat.
     await StorageService().ensurePermission();
+    await BackgroundService.requestPermissions();
 
     RelayService.instance.connect(
       url: _urlController.text.trim(),
@@ -67,6 +69,7 @@ class _SetupScreenState extends State<SetupScreen> {
       ownNumber: _numberController.text.trim(),
     );
     ChatController.instance.startListening();
+    await BackgroundService.start();
 
     if (!mounted) return;
     setState(() => _saving = false);
