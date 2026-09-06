@@ -30,6 +30,11 @@ jobs:
             flutter create . --platforms=android --org com.marco.toppychat --project-name toppychat
           fi
 
+      - name: Restore fixed debug keystore (per firmare l'APK sempre allo stesso modo)
+        run: |
+          mkdir -p ~/.android
+          base64 -d mobile-app/ci/debug-keystore.base64 > ~/.android/debug.keystore
+
       - name: Enable core library desugaring (richiesto da flutter_local_notifications)
         working-directory: mobile-app
         run: |
