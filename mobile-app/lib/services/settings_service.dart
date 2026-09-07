@@ -2,10 +2,16 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/app_config.dart';
 import '../models/contact.dart';
 
 /// Gestisce le impostazioni salvate localmente sul telefono:
 /// numero proprio, indirizzo del relay, token e whitelist dei contatti.
+///
+/// Relay e token hanno un default incorporato nell'app (vedi AppConfig):
+/// finche' l'utente non li cambia esplicitamente dalle impostazioni
+/// avanzate, getRelayUrl()/getRelayToken() ritornano quei default, cosi'
+/// il flusso normale richiede solo il numero di telefono.
 ///
 /// Non contiene nessun messaggio: quelli vivono solo nei file di testo
 /// (vedi StorageService).
@@ -25,9 +31,19 @@ class SettingsService {
     await prefs.setString(_kOwnNumber, number);
   }
 
-  Future<String?> getRelayUrl() async {
+  /// Indirizzo relay effettivo: quello scelto dall'utente nelle impostazioni
+  /// avanzate, oppure il default incorporato nell'app.
+  Future<String> getRelayUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_kRelayUrl);
+    final saved = prefs.getString(_kRelayUrl);
+    return (saved == null || saved.isEmpty) ? AppConfig.defaultRelayUrl : saved;
+  }
+
+  /// true se l'utente ha scelto un relay diverso da quello di default.
+  Future<bool> hasCustomRelayUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_kRelayUrl);
+    return saved != null && saved.isNotEmpty;
   }
 
   Future<void> setRelayUrl(String url) async {
@@ -35,9 +51,13 @@ class SettingsService {
     await prefs.setString(_kRelayUrl, url);
   }
 
-  Future<String?> getRelayToken() async {
+  /// Token relay effettivo: quello scelto dall'utente, oppure il default.
+  Future<String> getRelayToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_kRelayToken);
+    final saved = prefs.getString(_kRelayToken);
+    return (saved == null || saved.isEmpty)
+        ? AppConfig.defaultRelayToken
+        : saved;
   }
 
   Future<void> setRelayToken(String token) async {
@@ -45,10 +65,10 @@ class SettingsService {
     await prefs.setString(_kRelayToken, token);
   }
 
+  /// Ora basta il numero di telefono: relay e token hanno gia' un default.
   Future<bool> isSetupComplete() async {
     final number = await getOwnNumber();
-    final url = await getRelayUrl();
-    return number != null && number.isNotEmpty && url != null && url.isNotEmpty;
+    return number != null && number.isNotEmpty;
   }
 
   Future<List<Contact>> getContacts() async {

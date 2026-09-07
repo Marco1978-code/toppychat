@@ -86,6 +86,7 @@ class ChatController {
     await NotificationService.instance.showMessageNotification(
       title: contact.name,
       body: msg.text,
+      contactNumber: from,
     );
   }
 
