@@ -90,6 +90,37 @@ class RelayService {
     });
   }
 
+  /// Invia un file (immagine o documento) come base64 al contatto [to].
+  /// Il relay non lo salva mai su disco: lo inoltra e basta (o lo tiene
+  /// brevemente in coda in RAM se il destinatario e' offline).
+  void sendFile({
+    required String to,
+    required String id,
+    required String fileName,
+    required String mimeType,
+    required String dataBase64,
+  }) {
+    _send({
+      'type': 'file',
+      'to': to,
+      'id': id,
+      'fileName': fileName,
+      'mimeType': mimeType,
+      'data': dataBase64,
+      'ts': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  /// Invia una ricevuta di consegna/lettura per il messaggio [id] al
+  /// mittente originale [to] (le "spunte" stile chat).
+  void sendReceipt({
+    required String to,
+    required String id,
+    required String status,
+  }) {
+    _send({'type': 'receipt', 'to': to, 'id': id, 'status': status});
+  }
+
   void _send(Map<String, dynamic> payload) {
     _channel?.sink.add(jsonEncode(payload));
   }

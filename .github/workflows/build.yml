@@ -72,6 +72,12 @@ jobs:
         working-directory: mobile-app
         run: cp android_overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
 
+      - name: Apply custom notification sound resource
+        working-directory: mobile-app
+        run: |
+          mkdir -p android/app/src/main/res/raw
+          cp android_overrides/res/raw/message_pop.wav android/app/src/main/res/raw/message_pop.wav
+
       - name: Install dependencies
         working-directory: mobile-app
         run: flutter pub get

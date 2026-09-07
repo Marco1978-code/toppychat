@@ -20,10 +20,15 @@ class NotificationService {
   /// Chiamato con il numero del contatto quando l'utente tocca una notifica.
   Future<void> Function(String contactNumber)? onOpenContact;
 
-  static const _channelId = 'toppychat_messages';
+  // "_v2": un cambio di canale con nome diverso da quello originale serve
+  // a far ripartire Android con le nuove impostazioni (in particolare il
+  // suono personalizzato), dato che un canale gia' creato su un telefono
+  // non aggiorna piu' il suono anche se il codice cambia.
+  static const _channelId = 'toppychat_messages_v2';
   static const _channelName = 'Messaggi ToppyChat';
   static const _channelDescription =
       'Notifiche per i nuovi messaggi ricevuti in ToppyChat';
+  static const _notificationSound = RawResourceAndroidNotificationSound('message_pop');
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -40,6 +45,7 @@ class NotificationService {
       _channelName,
       description: _channelDescription,
       importance: Importance.high,
+      sound: _notificationSound,
     );
     await _plugin
         .resolvePlatformSpecificImplementation<
@@ -83,6 +89,7 @@ class NotificationService {
       channelDescription: _channelDescription,
       importance: Importance.high,
       priority: Priority.high,
+      sound: _notificationSound,
     );
     const details = NotificationDetails(android: androidDetails);
 

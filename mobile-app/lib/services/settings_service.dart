@@ -20,6 +20,7 @@ class SettingsService {
   static const _kRelayUrl = 'relay_url';
   static const _kRelayToken = 'relay_token';
   static const _kContacts = 'contacts';
+  static const _kChatGradientIndex = 'chat_gradient_index';
 
   Future<String?> getOwnNumber() async {
     final prefs = await SharedPreferences.getInstance();
@@ -98,5 +99,18 @@ class SettingsService {
     final contacts = await getContacts();
     contacts.removeWhere((c) => c.number == number);
     await saveContacts(contacts);
+  }
+
+  /// Indice dello sfondo sfumato scelto per le chat (vedi
+  /// lib/config/chat_gradients.dart). -1 significa "nessuno" (sfondo
+  /// predefinito del tema).
+  Future<int> getChatGradientIndex() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_kChatGradientIndex) ?? -1;
+  }
+
+  Future<void> setChatGradientIndex(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kChatGradientIndex, index);
   }
 }
