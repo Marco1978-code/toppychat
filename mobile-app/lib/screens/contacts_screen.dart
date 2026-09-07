@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/contact.dart';
 import '../services/chat_controller.dart';
 import '../services/settings_service.dart';
+import 'appearance_screen.dart';
 import 'chat_screen.dart';
 import 'setup_screen.dart';
 
@@ -142,6 +143,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.palette_outlined),
+            tooltip: 'Aspetto delle chat',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AppearanceScreen()),
             ),
           ),
           IconButton(
