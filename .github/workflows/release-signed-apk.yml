@@ -118,44 +118,40 @@ jobs:
         run: |
           if [ -f android/app/build.gradle.kts ]; then
             GRADLE_FILE=android/app/build.gradle.kts
-            cat >> "$GRADLE_FILE" <<'EOF'
-
-android {
-    signingConfigs {
-        create("release") {
-            storeFile = file(System.getenv("TOPPYCHAT_KEYSTORE_PATH")!!)
-            storePassword = System.getenv("TOPPYCHAT_KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("TOPPYCHAT_KEY_ALIAS")
-            keyPassword = System.getenv("TOPPYCHAT_KEY_PASSWORD")
-        }
-    }
-    buildTypes {
-        getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
-        }
-    }
-}
-EOF
+            echo "" >> "$GRADLE_FILE"
+            echo "android {" >> "$GRADLE_FILE"
+            echo "    signingConfigs {" >> "$GRADLE_FILE"
+            echo "        create(\"release\") {" >> "$GRADLE_FILE"
+            echo "            storeFile = file(System.getenv(\"TOPPYCHAT_KEYSTORE_PATH\")!!)" >> "$GRADLE_FILE"
+            echo "            storePassword = System.getenv(\"TOPPYCHAT_KEYSTORE_PASSWORD\")" >> "$GRADLE_FILE"
+            echo "            keyAlias = System.getenv(\"TOPPYCHAT_KEY_ALIAS\")" >> "$GRADLE_FILE"
+            echo "            keyPassword = System.getenv(\"TOPPYCHAT_KEY_PASSWORD\")" >> "$GRADLE_FILE"
+            echo "        }" >> "$GRADLE_FILE"
+            echo "    }" >> "$GRADLE_FILE"
+            echo "    buildTypes {" >> "$GRADLE_FILE"
+            echo "        getByName(\"release\") {" >> "$GRADLE_FILE"
+            echo "            signingConfig = signingConfigs.getByName(\"release\")" >> "$GRADLE_FILE"
+            echo "        }" >> "$GRADLE_FILE"
+            echo "    }" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
           elif [ -f android/app/build.gradle ]; then
             GRADLE_FILE=android/app/build.gradle
-            cat >> "$GRADLE_FILE" <<'EOF'
-
-android {
-    signingConfigs {
-        release {
-            storeFile file(System.getenv('TOPPYCHAT_KEYSTORE_PATH'))
-            storePassword System.getenv('TOPPYCHAT_KEYSTORE_PASSWORD')
-            keyAlias System.getenv('TOPPYCHAT_KEY_ALIAS')
-            keyPassword System.getenv('TOPPYCHAT_KEY_PASSWORD')
-        }
-    }
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-        }
-    }
-}
-EOF
+            echo "" >> "$GRADLE_FILE"
+            echo "android {" >> "$GRADLE_FILE"
+            echo "    signingConfigs {" >> "$GRADLE_FILE"
+            echo "        release {" >> "$GRADLE_FILE"
+            echo "            storeFile file(System.getenv('TOPPYCHAT_KEYSTORE_PATH'))" >> "$GRADLE_FILE"
+            echo "            storePassword System.getenv('TOPPYCHAT_KEYSTORE_PASSWORD')" >> "$GRADLE_FILE"
+            echo "            keyAlias System.getenv('TOPPYCHAT_KEY_ALIAS')" >> "$GRADLE_FILE"
+            echo "            keyPassword System.getenv('TOPPYCHAT_KEY_PASSWORD')" >> "$GRADLE_FILE"
+            echo "        }" >> "$GRADLE_FILE"
+            echo "    }" >> "$GRADLE_FILE"
+            echo "    buildTypes {" >> "$GRADLE_FILE"
+            echo "        release {" >> "$GRADLE_FILE"
+            echo "            signingConfig signingConfigs.release" >> "$GRADLE_FILE"
+            echo "        }" >> "$GRADLE_FILE"
+            echo "    }" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
           else
             echo "File build.gradle non trovato in android/app" >&2
             exit 1
