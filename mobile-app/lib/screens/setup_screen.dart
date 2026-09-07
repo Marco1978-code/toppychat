@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../services/background_service.dart';
 import '../services/chat_controller.dart';
+import '../services/notification_service.dart';
 import '../services/relay_service.dart';
 import '../services/settings_service.dart';
 import '../services/storage_service.dart';
 import 'contacts_screen.dart';
 
-/// Prima schermata: configura il numero proprio e il server relay.
-/// Va compilata una volta sola (poi si puo' riaprire dalle impostazioni).
+/// Prima schermata: nel flusso normale chiede solo il numero di telefono,
+/// perche' relay e token hanno gia' un valore di default incorporato
+/// nell'app (vedi AppConfig/SettingsService). Chi vuole usare un relay
+/// proprio puo' aprire "Impostazioni avanzate" ed inserirlo li'.
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
 
@@ -19,10 +22,11 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _numberController = TextEditingController();
-  final _urlController = TextEditingController(text: 'wss://');
+  final _urlController = TextEditingController();
   final _tokenController = TextEditingController();
   final _settings = SettingsService();
   bool _saving = false;
+  bool _showAdvanced = false;
 
   @override
   void initState() {
@@ -34,11 +38,15 @@ class _SetupScreenState extends State<SetupScreen> {
     final number = await _settings.getOwnNumber();
     final url = await _settings.getRelayUrl();
     final token = await _settings.getRelayToken();
+    final hasCustomRelay = await _settings.hasCustomRelayUrl();
     if (!mounted) return;
     setState(() {
       if (number != null) _numberController.text = number;
-      if (url != null && url.isNotEmpty) _urlController.text = url;
-      if (token != null) _tokenController.text = token;
+      _urlController.text = url;
+      _tokenController.text = token;
+      // Se l'utente aveva gia' scelto un relay diverso dal default,
+      // mostriamo subito la sezione avanzata cosi' la vede.
+      _showAdvanced = hasCustomRelay;
     });
   }
 
@@ -58,9 +66,10 @@ class _SetupScreenState extends State<SetupScreen> {
     await _settings.setRelayUrl(_urlController.text.trim());
     await _settings.setRelayToken(_tokenController.text.trim());
 
-    // Chiediamo subito il permesso per la cartella Download, cosi' lo
-    // sblocchiamo prima di arrivare alla prima chat.
+    // Chiediamo subito il permesso per la cartella Download e per le
+    // notifiche, cosi' li sblocchiamo prima di arrivare alla prima chat.
     await StorageService().ensurePermission();
+    await NotificationService.instance.requestPermission();
     await BackgroundService.requestPermissions();
 
     RelayService.instance.connect(
@@ -90,8 +99,8 @@ class _SetupScreenState extends State<SetupScreen> {
             child: ListView(
               children: [
                 const Text(
-                  'Inserisci il tuo numero e i dati del relay '
-                  '(il piccolo server che inoltra i messaggi senza salvarli).',
+                  'Inserisci il tuo numero di telefono per iniziare a '
+                  'chattare. Il resto e\' gia\' configurato.',
                   style: TextStyle(color: Colors.black54),
                 ),
                 const SizedBox(height: 24),
@@ -106,30 +115,54 @@ class _SetupScreenState extends State<SetupScreen> {
                       ? 'Campo obbligatorio'
                       : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _urlController,
-                  decoration: const InputDecoration(
-                    labelText: 'Indirizzo relay (wss://...)',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Campo obbligatorio';
-                    if (!v.startsWith('ws://') && !v.startsWith('wss://')) {
-                      return 'Deve iniziare con ws:// o wss://';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _tokenController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Token del relay (RELAY_TOKEN)',
-                    border: OutlineInputBorder(),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        setState(() => _showAdvanced = !_showAdvanced),
+                    icon: Icon(
+                      _showAdvanced
+                          ? Icons.expand_less
+                          : Icons.expand_more,
+                    ),
+                    label: const Text('Impostazioni avanzate'),
                   ),
                 ),
+                if (_showAdvanced) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Solo per utenti esperti: qui puoi usare un relay '
+                    'diverso da quello incorporato nell\'app.',
+                    style: TextStyle(color: Colors.black54, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _urlController,
+                    decoration: const InputDecoration(
+                      labelText: 'Indirizzo relay (wss://...)',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Campo obbligatorio';
+                      }
+                      if (!v.startsWith('ws://') && !v.startsWith('wss://')) {
+                        return 'Deve iniziare con ws:// o wss://';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _tokenController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Token del relay (RELAY_TOKEN)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 32),
                 FilledButton(
                   onPressed: _saving ? null : _save,

@@ -1,0 +1,197 @@
+name: Build signed release APK
+
+# Va avviato a mano (Actions -> Build signed release APK -> Run workflow).
+# A differenza di build.yml (che firma con la debug keystore fissa per le
+# build di sviluppo), questo genera una keystore di RELEASE vera sul
+# runner, ad ogni esecuzione, con identita' CN=Marco Galluffo. La keystore
+# non viene mai committata nel repo: viene generata in una cartella
+# temporanea del runner e caricata solo come artifact del workflow, cosi'
+# il proprietario del repo puo' scaricarla e riusarla per firmare
+# aggiornamenti futuri con la stessa identita'.
+on:
+  workflow_dispatch:
+
+jobs:
+  build-signed-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Generate Android project if missing
+        working-directory: mobile-app
+        run: |
+          if [ ! -d android ]; then
+            flutter create . --platforms=android --org com.marco.toppychat --project-name toppychat
+          fi
+
+      - name: Generate release keystore (CN=Marco Galluffo)
+        run: |
+          KEYSTORE_DIR="$RUNNER_TEMP/toppychat-keystore"
+          mkdir -p "$KEYSTORE_DIR"
+          KEYSTORE_PATH="$KEYSTORE_DIR/toppychat-release.jks"
+          STORE_PASS="$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 28)"
+          ALIAS="toppychat"
+
+          echo "::add-mask::$STORE_PASS"
+
+          keytool -genkeypair -v \
+            -keystore "$KEYSTORE_PATH" \
+            -alias "$ALIAS" \
+            -keyalg RSA -keysize 4096 \
+            -validity 10950 \
+            -storepass "$STORE_PASS" \
+            -keypass "$STORE_PASS" \
+            -dname "CN=Marco Galluffo, O=ToppyChat, OU=ToppyChat App, C=IT"
+
+          {
+            echo "TOPPYCHAT_KEYSTORE_PATH=$KEYSTORE_PATH"
+            echo "TOPPYCHAT_KEY_ALIAS=$ALIAS"
+          } >> "$GITHUB_ENV"
+          {
+            echo "TOPPYCHAT_KEYSTORE_PASSWORD=$STORE_PASS"
+            echo "TOPPYCHAT_KEY_PASSWORD=$STORE_PASS"
+          } >> "$GITHUB_ENV"
+
+          # Credenziali per l'artifact da consegnare al proprietario:
+          # NON finiscono nel repo, solo nell'artifact di questa run.
+          {
+            echo "Keystore di release ToppyChat"
+            echo "=============================="
+            echo "Alias:            $ALIAS"
+            echo "Store password:   $STORE_PASS"
+            echo "Key password:     $STORE_PASS (PKCS12: stessa dello store)"
+            echo ""
+            echo "Conserva questo file e la keystore .jks in un posto sicuro."
+            echo "Servono per firmare tutti gli aggiornamenti futuri con la"
+            echo "stessa identita' (CN=Marco Galluffo): se li perdi, non potrai"
+            echo "piu' pubblicare aggiornamenti compatibili con questa firma."
+          } > "$KEYSTORE_DIR/CREDENZIALI-NON-CONDIVIDERE.txt"
+
+          echo "KEYSTORE_ARTIFACT_DIR=$KEYSTORE_DIR" >> "$GITHUB_ENV"
+
+      - name: Enable core library desugaring (richiesto da flutter_local_notifications)
+        working-directory: mobile-app
+        run: |
+          if [ -f android/app/build.gradle.kts ]; then
+            GRADLE_FILE=android/app/build.gradle.kts
+            echo "" >> "$GRADLE_FILE"
+            echo "android {" >> "$GRADLE_FILE"
+            echo "    compileOptions {" >> "$GRADLE_FILE"
+            echo "        isCoreLibraryDesugaringEnabled = true" >> "$GRADLE_FILE"
+            echo "    }" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
+            echo "" >> "$GRADLE_FILE"
+            echo "dependencies {" >> "$GRADLE_FILE"
+            echo "    coreLibraryDesugaring(\"com.android.tools:desugar_jdk_libs:2.1.4\")" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
+          elif [ -f android/app/build.gradle ]; then
+            GRADLE_FILE=android/app/build.gradle
+            echo "" >> "$GRADLE_FILE"
+            echo "android {" >> "$GRADLE_FILE"
+            echo "    compileOptions {" >> "$GRADLE_FILE"
+            echo "        coreLibraryDesugaringEnabled true" >> "$GRADLE_FILE"
+            echo "    }" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
+            echo "" >> "$GRADLE_FILE"
+            echo "dependencies {" >> "$GRADLE_FILE"
+            echo "    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'" >> "$GRADLE_FILE"
+            echo "}" >> "$GRADLE_FILE"
+          else
+            echo "File build.gradle non trovato in android/app" >&2
+            exit 1
+          fi
+
+      - name: Add release signing config to Gradle
+        working-directory: mobile-app
+        run: |
+          if [ -f android/app/build.gradle.kts ]; then
+            GRADLE_FILE=android/app/build.gradle.kts
+            cat >> "$GRADLE_FILE" <<'EOF'
+
+android {
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("TOPPYCHAT_KEYSTORE_PATH")!!)
+            storePassword = System.getenv("TOPPYCHAT_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("TOPPYCHAT_KEY_ALIAS")
+            keyPassword = System.getenv("TOPPYCHAT_KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
+}
+EOF
+          elif [ -f android/app/build.gradle ]; then
+            GRADLE_FILE=android/app/build.gradle
+            cat >> "$GRADLE_FILE" <<'EOF'
+
+android {
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('TOPPYCHAT_KEYSTORE_PATH'))
+            storePassword System.getenv('TOPPYCHAT_KEYSTORE_PASSWORD')
+            keyAlias System.getenv('TOPPYCHAT_KEY_ALIAS')
+            keyPassword System.getenv('TOPPYCHAT_KEY_PASSWORD')
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+}
+EOF
+          else
+            echo "File build.gradle non trovato in android/app" >&2
+            exit 1
+          fi
+
+      - name: Apply custom AndroidManifest
+        working-directory: mobile-app
+        run: cp android_overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+
+      - name: Install dependencies
+        working-directory: mobile-app
+        run: flutter pub get
+
+      - name: Build signed release APK
+        working-directory: mobile-app
+        run: flutter build apk --release
+
+      - name: Rename output to ToppyChat.apk
+        working-directory: mobile-app
+        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/ToppyChat.apk
+
+      - name: Verify APK signature
+        working-directory: mobile-app
+        run: |
+          BUILD_TOOLS_DIR=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n1)
+          "${BUILD_TOOLS_DIR}apksigner" verify --print-certs \
+            build/app/outputs/flutter-apk/ToppyChat.apk
+
+      - name: Upload ToppyChat.apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: ToppyChat-apk
+          path: mobile-app/build/app/outputs/flutter-apk/ToppyChat.apk
+
+      - name: Upload release keystore (conservala fuori da GitHub!)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ToppyChat-release-keystore
+          path: ${{ env.KEYSTORE_ARTIFACT_DIR }}
