@@ -36,15 +36,6 @@ jobs:
             flutter create . --platforms=android --org com.marco.toppychat --project-name toppychat
           fi
 
-      - name: Bump compileSdk (richiesto da flutter_plugin_android_lifecycle/file_picker)
-        working-directory: mobile-app
-        run: |
-          if [ -f android/app/build.gradle.kts ]; then
-            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
-          elif [ -f android/app/build.gradle ]; then
-            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/' android/app/build.gradle
-          fi
-
       - name: Generate release keystore (CN=Marco Galluffo)
         run: |
           KEYSTORE_DIR="$RUNNER_TEMP/toppychat-keystore"
